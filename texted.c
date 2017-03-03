@@ -15,6 +15,8 @@
 #define TITLE_COLSCH 7
 
 int LinesCount = 1;
+int FilePositions[2] = {0, 0};
+int SpacesCount = 1;
 
 void mainloop(char x[], char y[]);
 
@@ -76,25 +78,61 @@ void rendertitle(char filename[], char message[], int colorid) {
 	refresh();
 }
 
-void printline(int indx) {
+void printline(int indx, int strcount) {
 	//Хуйня, которая выводит номера строк
 
 	attron(COLOR_PAIR(LINES_COLSCH));
 	attron(A_BOLD);	
-	printw(" %d) ", indx);
+	printw(" %d)", indx);
+
+	char c[5];
+	sprintf(c, "%d", indx);
+
+	for (int i = strlen(c); i <= strcount; i++) {
+		printw(" ");
+	}
 	attroff(A_BOLD);
-	attron(COLOR_PAIR(1));
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
 }
 
 void rendercontent(char input[]) {
 	
 	//Хуйня, которая считывает строки и выводит их 
 
-	int i = 0;
+	int i = 0, nowline = 1;
 	LinesCount = 1;
 
-	printline(LinesCount);
+	while (input[i]) {
+		if (input[i] == '\n') {
+			LinesCount++;
+		}
+		i++;
+	}
 
+	char c[5];
+	sprintf(c, "%d", LinesCount);
+	SpacesCount = strlen(c);
+
+	printline(nowline, SpacesCount);
+
+	i = 0;
+	while (input[i]) {
+
+		printw("%c", input[i]);
+		if (input[i] == '\n') {
+
+			nowline++;
+			printline(nowline, SpacesCount);
+
+		} 
+		i++;
+		
+	}
+
+
+}
+
+	i = 0;
 	while (input[i]) {
 
 		printw("%c", input[i]);
@@ -107,8 +145,6 @@ void rendercontent(char input[]) {
 		i++;
 		
 	}
-
-}
 int mainmenu(char input[], char dir[]) {
 	//Менюшка 
 	//TODO - прикрутить ебливый скроллер на стрелочки, было бы заебись
@@ -117,7 +153,7 @@ int mainmenu(char input[], char dir[]) {
 	rendertitle(dir, "Меню", YELLOW_COLSCH);
 
 	attron(A_BOLD);	
-	attron(COLOR_PAIR(3));
+	attron(COLOR_PAIR(SUCCESS_COLSCH));
 	printw(" 1 - Открыть\n");
 	printw(" 2 - Сохранить\n");
 	printw(" 3 - Сохранить как\n");
@@ -126,7 +162,10 @@ int mainmenu(char input[], char dir[]) {
 	refresh();
 
 	keypad(stdscr, 1);
+
+	curs_set(0);
 	int chr = getch();
+
 
 	while (chr) {
 
@@ -146,6 +185,10 @@ int mainmenu(char input[], char dir[]) {
 
 }
 
+void movecursor(int* x, int* y){
+
+}
+
 void mainloop(char input[], char dir[]) {
 	//Главный цикл, где просчитывается всякая хуйня
 
@@ -155,6 +198,8 @@ void mainloop(char input[], char dir[]) {
 	refresh();
 	
 	noecho();
+	curs_set(1);	
+
 	keypad(stdscr, 1);
 	int chr = getch();
 
@@ -164,11 +209,13 @@ void mainloop(char input[], char dir[]) {
 
 			int x = mainmenu(input, dir);
 			
-			if (x == 42) {
+			if (x == 42) { //Просто аргумент выхода из программы
 				return;
 
 			} else if (x == 0) {
 				break;
+
+			} else if (x == KEY_UP) {
 
 			}
 
@@ -202,7 +249,7 @@ int main(int argc, char* args[]) {
     init_pair(TITLE_COLSCH, COLOR_MAGENTA, COLOR_BLACK);	
 	
 	raw();
-    mainloop("char\nnahui\npidoras\nебаный сука блять", "dir");
+    mainloop("char\nnahui\npidoras\nебаный сука блять\n\nИДИ НАХУЙ\n\nПИДОРАСЫ\n\nИДИ НАХУЙ\n\nПИДОРАСЫ", "dir");
 
 	endwin();
 
