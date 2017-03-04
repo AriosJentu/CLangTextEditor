@@ -22,7 +22,15 @@ int FilePosX = 0, FilePosY = 0;
 int SpacesCount = 1;
 int TitleSize = 6;
 
-void mainloop(char x[], char y[]);
+void mainloop(char x[], char y[], char z[], int f);
+int mainmenu(char x[], char y[]);
+
+/////////////////////////////////////////////////////////////////
+void movecur(int y, int x) {
+	move(y, x);
+	FilePosX = x;
+	FilePosY = y;
+}
 
 /////////////////////////////////////////////////////////////////
 //Скопипастил функцию на проверку существования и доступности директории из моей псевдо-утилиты filecreator нахуй
@@ -86,8 +94,6 @@ int getlinelen(char input[], int line) {
 	}
 	i = 0;
 	reserved[j] = '\0';
-	//mvprintw(32, 0, "%s\n", reserved);
-
 
 	int thisline = 0;
 	int result = 0;
@@ -97,7 +103,6 @@ int getlinelen(char input[], int line) {
 		if (thisline == line && reserved[i] != '\n') {
 			result++;
 		}
-
 
 		if (reserved[i] == '\n') {
 
@@ -161,7 +166,7 @@ void rendertitle(char filename[], char message[], int colorid) {
 	attron(COLOR_PAIR(colorid));
 
 	attron(COLOR_PAIR(colorid));
-	printw("\n %s\n", message == "nth" ? "Текстовый редактор" : message);
+	printw("\n %s\n", message);
 	attron(COLOR_PAIR(DEFAULT_COLSCH));
 	
 	attron(COLOR_PAIR(LINES_COLSCH));
@@ -238,12 +243,111 @@ void rendercontent(char input[]) {
 		
 	}
 
+}
 
+int savefileas(char* dir, char input[]) {
+
+	int posX = 20, posY = TitleSize+9;
+	attron(A_BOLD);
+	attron(COLOR_PAIR(YELLOW_COLSCH));
+	mvprintw(posY, 0, " Введите имя файла: ");
+	mvprintw(posY+1, 0, " Для выхода нажмите ESC (и подождите)");
+	attroff(A_BOLD);
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	refresh();
+
+	char lst[50] = "";
+
+	int chr = getch();
+
+	int x;
+	for (x = 0; dir[x]; x++) {
+		*(dir+x) = dir[x];
+	}
+	*(dir+x) = '\0';
+
+	while (chr != '\n') {
+		if ( (chr >= 32 && chr <= 126) ) {
+
+			mvprintw(posY, posX, "%c", chr);
+			posX++;
+			sprintf(lst, "%s%c", lst, chr);
+
+		} else if (chr == KEY_BACKSPACE && posX > 20) { 
+
+			posX--;
+			mvprintw(posY, posX, " ");		
+			int i;
+			lst[strlen(lst)-1] = '\0';
+
+		} else if ( chr == 27  ) {
+
+			return 0;
+		
+		}
+		chr = getch();
+	}
+
+	mvprintw(0, 0, "DIR: '%s'", lst);
+	if (strlen(lst) <= 1 || lst[0] == ' ') {
+		return 13;
+	}
+
+	int noext = 1;
+	for (x = 0; lst[x]; x++) {
+		*(dir+x) = lst[x];
+		if (lst[x] == '.' && x < strlen(lst)-1) {
+			noext = 0;
+		}
+	}
+	if (noext) {
+		*(dir+(x++)) = '.';
+		*(dir+(x++)) = 't';
+		*(dir+(x++)) = 'x';
+		*(dir+(x++)) = 't';
+	}
+	*(dir+x) = '\0';
+	
+	FILE* OutputFile;
+	if (OutputFile = fopen(dir, "w")) {
+
+		fprintf(OutputFile, "%s", input);
+		fclose(OutputFile);
+		
+		return 12;
+		
+	} else {	
+			
+		return 13;
+
+	}
+}
+
+int savefile(char* dir, char input[]) {
+
+	if (fopen(dir, "r") || dir != "*new") {
+		
+		FILE* OutputFile;
+		if (OutputFile = fopen(dir, "w")) {
+		
+			fprintf(OutputFile, "%s", input);
+			fclose(OutputFile);
+			return 12;
+
+		} else {	
+			
+			return 13;
+		}
+
+	} else {
+
+		return savefileas(dir, input);
+
+	}
 }
 
 int mainmenu(char input[], char dir[]) {
 	//Менюшка 
-	//TODO - прикрутить ебливый скроллер на стрелочки, было бы заебись
 
 	clear();
 	rendertitle(dir, "Меню", YELLOW_COLSCH);
@@ -294,6 +398,14 @@ int mainmenu(char input[], char dir[]) {
 		if (chr == '5') {			
 			return 42;
 
+		} else if (chr == '3') {
+
+			return 2;
+
+		} else if (chr == '4') {
+
+			return 1;
+
 		} else if (chr == KEY_F(2) || chr == ItemsCount+'0') {			
 			return 0;
 
@@ -340,12 +452,6 @@ int mainmenu(char input[], char dir[]) {
 
 }
 
-void movecur(int y, int x) {
-	move(y, x);
-	FilePosX = x;
-	FilePosY = y;
-}
-
 void insertchar(char* text, char input, int position) {
 
 	for (int i = strlen(text); i >= position; i--) {
@@ -363,11 +469,11 @@ void delchar(char* text, int position) {
 }
 
 
-void mainloop(char input[], char dir[]) {
+void mainloop(char input[], char dir[], char reason[], int col) {
 	//Главный цикл, где просчитывается всякая хуйня
 
 	clear();
-	rendertitle(dir, "nth", LINES_COLSCH);
+	rendertitle(dir, reason, col);
 	rendercontent(input);
 
 	int MinX = SpacesCount+3, MinY = 7, MaxY = 6+LinesCount+ReservedLines;
@@ -380,7 +486,7 @@ void mainloop(char input[], char dir[]) {
 		FilePosX = MinX;
 	}
 
-	mvprintw(0, 0, "Lines: %i; Sublines: %i; Length: %i; Count: %i; Max: %i", LinesCount, ReservedLines, getlinelen(input, FilePosY-(TitleSize+1)), resrvdbefore(input, FilePosY-(TitleSize+1)), getmaxx(stdscr));
+	mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 	refresh();
 	
 	noecho();
@@ -391,6 +497,10 @@ void mainloop(char input[], char dir[]) {
 	move(FilePosY, FilePosX);
 
 	int chr = getch();
+
+	char exittext[50] = "Текстовый редактор";
+	int exitcol = LINES_COLSCH;
+
 	while (chr) {
 
 		//mvprintw(0, 0, "Char: '%c'", chr);
@@ -402,10 +512,14 @@ void mainloop(char input[], char dir[]) {
 		getyx(stdscr, y, x);
         if (chr == KEY_RESIZE) {
         	clear();
-			rendertitle(dir, "nth", LINES_COLSCH);
+			rendertitle(dir, exittext, exitcol);
 			rendercontent(input);
-			mvprintw(0, 0, "Lines: %i; Sublines: %i; Length: %i; Count: %i; Max: %i", LinesCount, ReservedLines, getlinelen(input, y-(TitleSize+1)), resrvdbefore(input, y-(TitleSize+1)), getmaxx(stdscr));
+			mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 			refresh();
+        }
+
+        if (y > MaxY) {
+        	y = MaxY;
         }
 
 		refresh();
@@ -419,6 +533,39 @@ void mainloop(char input[], char dir[]) {
 
 			} else if (z == 0) {
 				break;
+
+			} else if (z == 1) {
+
+				int sv = savefileas(dir, input);
+				if (sv == 12) {
+
+					sprintf(exittext, "Файл сохранен");
+					exitcol = SUCCESS_COLSCH;
+				
+				} else if (sv == 13) {
+
+					sprintf(exittext, "Не удалось сохранить файл");
+					exitcol = ERROR_COLSCH;
+
+				}
+				break;
+
+			} else if (z == 2) {
+
+				int sv = savefile(dir, input);
+				if (sv == 12) {
+
+					sprintf(exittext, "Файл сохранен");
+					exitcol = SUCCESS_COLSCH;
+				
+				} else if (sv == 13) {
+
+					sprintf(exittext, "Не удалось сохранить файл");
+					exitcol = ERROR_COLSCH;
+
+				}
+				break;
+
 			}
 
 		} else if (chr == KEY_UP) {
@@ -514,9 +661,9 @@ void mainloop(char input[], char dir[]) {
 			}
 
 			clear();
-			rendertitle(dir, "nth", LINES_COLSCH);
+			rendertitle(dir, exittext, exitcol);
 			rendercontent(input);
-			mvprintw(0, 0, "Lines: %i; Sublines: %i; Length: %i; Count: %i; Max: %i", LinesCount, ReservedLines, getlinelen(input, y-(TitleSize+1)), resrvdbefore(input, y-(TitleSize+1)), getmaxx(stdscr));
+			mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 			refresh();
 			move(FilePosY, FilePosX);
 		} 
@@ -530,7 +677,7 @@ void mainloop(char input[], char dir[]) {
 
 	keypad(stdscr, 0);
 
-	mainloop(input, dir);
+	mainloop(input, dir, exittext, exitcol);
 }
 
 int main(int argc, char* args[]) {
@@ -568,9 +715,16 @@ int main(int argc, char* args[]) {
 
 		fread(input, FILESIZE, 1, fopen(dir, "r"));
 
+    } else {
+
+    	if (fopen(dir, "w")) {
+    		remove(dir);
+    	} else {
+    		strcpy(dir, "*new");
+    	}
     }
     
-    mainloop(input, dir);
+    mainloop(input, dir, "Текстовый редактор", LINES_COLSCH);
 
 	endwin();
 
