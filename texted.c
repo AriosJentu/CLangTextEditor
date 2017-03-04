@@ -18,6 +18,7 @@ int LinesCount = 1;
 int ReservedLines = 0;
 int FilePosX = 0, FilePosY = 0;
 
+
 int SpacesCount = 1;
 int TitleSize = 6;
 
@@ -58,6 +59,8 @@ int getlinelen(char input[], int line) {
 	int linelen = SpacesCount+3, i = 0, j = 0;
 	ReservedLines = 0;
 
+	int newindx = 0;
+
 	while (input[i]) {
 
 		linelen++;
@@ -65,11 +68,14 @@ int getlinelen(char input[], int line) {
 		if (linelen >= getmaxx(stdscr) && !(input[i] == '\n')) {
 			linelen = SpacesCount+3;
 			reserved[j] = '\n';
-			ReservedLines++;
+			ReservedLines++;	
+			newindx++;
+
 			j++;
 		}	
 		if (input[i] == '\n') {
 
+			newindx++;
 			linelen = SpacesCount+3;
 
 		}
@@ -106,6 +112,36 @@ int getlinelen(char input[], int line) {
 	}
 
 	return result;
+}
+
+/////////////////////////////////////////////////////////////////
+
+int resrvdbefore(char input[], int line) {//Количество резервных строк (переносок) до текущей
+
+	int cnt = 0;
+
+	int newindx = 0;
+	int i = 0;
+	int thisline = 0;
+	int linelen = SpacesCount+3;
+
+	while (input[i] && thisline < line) {
+		
+		linelen++;
+		if (linelen > getmaxx(stdscr) && !(input[i] == '\n')) {\
+			linelen = SpacesCount+3;
+			thisline++;			
+			cnt++;
+		}
+		if (input[i] == '\n') {
+			thisline++;
+			linelen = SpacesCount+3;
+		}
+		i++;
+	}
+
+	return cnt;
+
 }
 /////////////////////////////////////////////////////////////////
 
@@ -333,12 +369,6 @@ void mainloop(char input[], char dir[]) {
 	clear();
 	rendertitle(dir, "nth", LINES_COLSCH);
 	rendercontent(input);
-	refresh();
-	
-	noecho();
-	curs_set(1);	
-
-	keypad(stdscr, 1);
 
 	int MinX = SpacesCount+3, MinY = 7, MaxY = 6+LinesCount+ReservedLines;
 	int x, y;
@@ -350,21 +380,34 @@ void mainloop(char input[], char dir[]) {
 		FilePosX = MinX;
 	}
 
+	mvprintw(0, 0, "Lines: %i; Sublines: %i; Length: %i; Count: %i; Max: %i", LinesCount, ReservedLines, getlinelen(input, FilePosY-(TitleSize+1)), resrvdbefore(input, FilePosY-(TitleSize+1)), getmaxx(stdscr));
+	refresh();
+	
+	noecho();
+	curs_set(1);	
+
+	keypad(stdscr, 1);
+
 	move(FilePosY, FilePosX);
 
 	int chr = getch();
 	while (chr) {
 
 		//mvprintw(0, 0, "Char: '%c'", chr);
+		
+		MinX = SpacesCount+3; 
+		MinY = 7; 
+		MaxY = 6+LinesCount+ReservedLines;
 
+		getyx(stdscr, y, x);
         if (chr == KEY_RESIZE) {
         	clear();
 			rendertitle(dir, "nth", LINES_COLSCH);
 			rendercontent(input);
+			mvprintw(0, 0, "Lines: %i; Sublines: %i; Length: %i; Count: %i; Max: %i", LinesCount, ReservedLines, getlinelen(input, y-(TitleSize+1)), resrvdbefore(input, y-(TitleSize+1)), getmaxx(stdscr));
 			refresh();
         }
 
-		getyx(stdscr, y, x);
 		refresh();
 
 		if (chr == KEY_F(2)) {
@@ -423,12 +466,13 @@ void mainloop(char input[], char dir[]) {
 
 			}
 
-		} else if ((chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr == ' ' || chr == KEY_BACKSPACE || chr == KEY_DC) {
+		} else if ( (chr >= 32 && chr <= 126) || chr == KEY_BACKSPACE || chr == KEY_DC || chr == '\n') {
+			
 			int pos = 0;
 			for (int val = 0; val < y-(TitleSize+1); val++) {
 				pos += getlinelen(input, val)+1;
 			}
-			pos += (x-MinX);
+			pos += (x-MinX)-(resrvdbefore(input, y-TitleSize-1));
 
 			if (chr == KEY_BACKSPACE) {
 
@@ -442,22 +486,37 @@ void mainloop(char input[], char dir[]) {
 
 						x--;
 					}
+					movecur(y, x);
+					if (inch() == '\n') {
+						LinesCount--;
+					}
 					delchar(input, pos);
 				}
 
 			} else if (chr == KEY_DC) {
 
+				if (inch() == '\n') {
+					LinesCount--;
+				}
 				delchar(input, pos+1);
 
 			} else {
 
 				insertchar(input, chr, pos);
-				x++;
+				if (chr == '\n') {
+					y++;
+					x = MinX;
+					LinesCount++;
+				} else {
+					x++;
+				}
+
 			}
 
 			clear();
 			rendertitle(dir, "nth", LINES_COLSCH);
 			rendercontent(input);
+			mvprintw(0, 0, "Lines: %i; Sublines: %i; Length: %i; Count: %i; Max: %i", LinesCount, ReservedLines, getlinelen(input, y-(TitleSize+1)), resrvdbefore(input, y-(TitleSize+1)), getmaxx(stdscr));
 			refresh();
 			move(FilePosY, FilePosX);
 		} 
