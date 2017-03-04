@@ -15,10 +15,13 @@
 #define TITLE_COLSCH 7
 
 int LinesCount = 1;
-int FilePositions[2] = {0, 0};
+int FilePosX = 0, FilePosY = 0;
+
 int SpacesCount = 1;
+int TitleSize = 6;
 
 void mainloop(char x[], char y[]);
+int getlinelen(char input[], int line);
 
 /////////////////////////////////////////////////////////////////
 //Скопипастил функцию на проверку существования и доступности директории из моей псевдо-утилиты filecreator нахуй
@@ -57,7 +60,7 @@ void rendertitle(char filename[], char message[], int colorid) {
 	printw("\n \tF2 - Меню\n");
 
 	attron(COLOR_PAIR(TITLE_COLSCH));
-	printw(" Используемый файл: ");
+	printw(" Используемый файл%s: ", fopen(filename, "r") ? "" : " (Создать)");
 
 	attron(COLOR_PAIR(DEFAULT_COLSCH));
 	printw("%s\n", filename);
@@ -132,19 +135,6 @@ void rendercontent(char input[]) {
 
 }
 
-	i = 0;
-	while (input[i]) {
-
-		printw("%c", input[i]);
-		if (input[i] == '\n') {
-
-			LinesCount++;
-			printline(LinesCount);
-
-		} 
-		i++;
-		
-	}
 int mainmenu(char input[], char dir[]) {
 	//Менюшка 
 	//TODO - прикрутить ебливый скроллер на стрелочки, было бы заебись
@@ -153,12 +143,36 @@ int mainmenu(char input[], char dir[]) {
 	rendertitle(dir, "Меню", YELLOW_COLSCH);
 
 	attron(A_BOLD);	
+
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	printw(" > ");
 	attron(COLOR_PAIR(SUCCESS_COLSCH));
-	printw(" 1 - Открыть\n");
-	printw(" 2 - Сохранить\n");
-	printw(" 3 - Сохранить как\n");
-	printw(" 4 - Выйти\n\n");
-	printw(" F2 - Вернуться\n");
+	printw("1 - Создать\n");
+
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	printw("   ");
+	attron(COLOR_PAIR(SUCCESS_COLSCH));
+	printw("2 - Открыть\n");
+
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	printw("   ");
+	attron(COLOR_PAIR(SUCCESS_COLSCH));
+	printw("3 - Сохранить\n");
+
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	printw("   ");
+	attron(COLOR_PAIR(SUCCESS_COLSCH));
+	printw("4 - Сохранить как\n");
+
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	printw("   ");
+	attron(COLOR_PAIR(SUCCESS_COLSCH));
+	printw("5 - Выйти\n\n");
+
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	printw("   ");
+	attron(COLOR_PAIR(SUCCESS_COLSCH));
+	printw("F2 - Вернуться\n");
 	refresh();
 
 	keypad(stdscr, 1);
@@ -166,14 +180,49 @@ int mainmenu(char input[], char dir[]) {
 	curs_set(0);
 	int chr = getch();
 
+	int ItemsCount = 7;
 
+	int SelectedItem = ItemsCount;
 	while (chr) {
 
-		if (chr == '4') {			
+		if (chr == '5') {			
 			return 42;
 
-		} else if (chr == KEY_F(2)) {			
+		} else if (chr == KEY_F(2) || chr == ItemsCount+'0') {			
 			return 0;
+
+		} else if (chr == KEY_UP) {
+
+			if (SelectedItem > ItemsCount){
+
+				attron(COLOR_PAIR(DEFAULT_COLSCH));
+
+				mvprintw(SelectedItem, 1, " ");
+
+				if (SelectedItem == ItemsCount+TitleSize) {
+					SelectedItem--;
+				}
+				mvprintw(--SelectedItem, 1, ">");
+			
+			}
+
+		} else if (chr == KEY_DOWN) {
+
+			if (SelectedItem < ItemsCount+TitleSize){
+
+				attron(COLOR_PAIR(DEFAULT_COLSCH));
+				mvprintw(SelectedItem, 1, " ");
+				if (SelectedItem == 5+TitleSize) {
+					SelectedItem++;
+				}
+				mvprintw(++SelectedItem, 1, ">");
+			
+			}
+
+		} else if (chr == KEY_RIGHT || chr == '\n') {
+
+			chr = (SelectedItem-TitleSize)+'0';
+			continue;
 
 		}
 
@@ -185,8 +234,10 @@ int mainmenu(char input[], char dir[]) {
 
 }
 
-void movecursor(int* x, int* y){
-
+void movecur(int y, int x) {
+	move(y, x);
+	FilePosX = x;
+	FilePosY = y;
 }
 
 void mainloop(char input[], char dir[]) {
@@ -201,25 +252,85 @@ void mainloop(char input[], char dir[]) {
 	curs_set(1);	
 
 	keypad(stdscr, 1);
-	int chr = getch();
 
+	int MinX = SpacesCount+3, MinY = 7, MaxY = 6+LinesCount;
+	int x, y;
+
+	if (FilePosY == 0){
+		FilePosY = MinY;
+	}
+	if (FilePosX == 0){
+		FilePosX = MinX;
+	}
+
+	move(FilePosY, FilePosX);
+
+	int chr = getch();
 	while (chr) {
+
+		getyx(stdscr, y, x);
 
 		if (chr == KEY_F(2)) {
 
-			int x = mainmenu(input, dir);
+			int z = mainmenu(input, dir);
 			
-			if (x == 42) { //Просто аргумент выхода из программы
+			if (z == 42) { //Просто аргумент выхода из программы
 				return;
 
-			} else if (x == 0) {
+			} else if (z == 0) {
 				break;
+			}
 
-			} else if (x == KEY_UP) {
+		} else if (chr == KEY_UP) {
+
+			if (y > MinY){
+				y--;
+			}
+
+			if (x > MinX+getlinelen(input, y-(TitleSize+1) )) {
+				x = MinX+getlinelen(input, y-(TitleSize+1)); 
+			}
+
+		} else if (chr == KEY_DOWN) {
+
+			if (y < MaxY) {
+				y++;
+			}
+			if (x > MinX+getlinelen(input, y-(TitleSize+1) )) {
+				x = MinX+getlinelen(input, y-(TitleSize+1)); 
+			}
+
+		} else if (chr == KEY_RIGHT) {
+
+			if (x < MinX+getlinelen(input, y-(TitleSize+1) )) {
+
+				x++;
+			
+			} else if (x == MinX+getlinelen(input, y-(TitleSize+1) ) && y < MaxY) {
+
+				y++;
+				x = MinX;
+			
+			}
+
+		} else if (chr == KEY_LEFT) {
+			
+			if (x > MinX) {
+
+				x--;
+
+			} else if(x == MinX && y > MinY) {
+
+				y--;
+				x = MinX+getlinelen(input, y-(TitleSize+1));
 
 			}
 
 		}
+
+		//mvprintw(3, 0, "Char: '%c'", inch());
+		
+		movecur(y, x);
 
 		chr = getch();
 	}
@@ -231,6 +342,14 @@ void mainloop(char input[], char dir[]) {
 
 int main(int argc, char* args[]) {
 	//Главная часть - тут крч все настройки и вызов функции цикла
+
+	char input[FILESIZE];
+	char dir[144] = "*new";
+	if (argc > 1) {
+		strcpy(dir, args[1]);
+	}
+
+	strcpy(input, "\0");
 
 	setlocale(LC_ALL, "");
 
@@ -249,9 +368,48 @@ int main(int argc, char* args[]) {
     init_pair(TITLE_COLSCH, COLOR_MAGENTA, COLOR_BLACK);	
 	
 	raw();
-    mainloop("char\nnahui\npidoras\nебаный сука блять\n\nИДИ НАХУЙ\n\nПИДОРАСЫ\n\nИДИ НАХУЙ\n\nПИДОРАСЫ", "dir");
+
+	if (fopen(dir, "r")) {
+
+		fread(input, FILESIZE, 1, fopen(dir, "r"));
+
+    }
+    
+    mainloop(input, dir);
 
 	endwin();
 
 	return 0;
+}
+int getlinelen(char input[], int line) {
+
+	setlocale(LC_CTYPE, "C-UTF-8");
+
+	int thisline = 0;
+
+	int i = 0;
+	int result = 0;
+	//mvprintw(0, 0, "'");
+	while (input[i]) {
+
+		//mvprintw(0, result+1, "%c", input[i]);
+		if (thisline == line && input[i] != '\n') {
+			result++;
+		}
+
+
+		if (input[i] == '\n') {
+
+			thisline++;
+			if (thisline > line) {
+				break;
+			}
+
+		} 
+		i++;
+		
+	}
+	//mvprintw(0, result+2, "' '%i'", result);
+
+	return result;
 }
