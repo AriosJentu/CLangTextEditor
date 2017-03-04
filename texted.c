@@ -15,13 +15,13 @@
 #define TITLE_COLSCH 7
 
 int LinesCount = 1;
+int ReservedLines = 0;
 int FilePosX = 0, FilePosY = 0;
 
 int SpacesCount = 1;
 int TitleSize = 6;
 
 void mainloop(char x[], char y[]);
-int getlinelen(char input[], int line);
 
 /////////////////////////////////////////////////////////////////
 //Скопипастил функцию на проверку существования и доступности директории из моей псевдо-утилиты filecreator нахуй
@@ -49,6 +49,63 @@ int isdirexist(char input[]) {
 	
 	}
 	return opendir(strs) ? 1 : 0;
+}
+
+/////////////////////////////////////////////////////////////////
+int getlinelen(char input[], int line) {
+
+	char reserved[FILESIZE];
+	int linelen = SpacesCount+3, i = 0, j = 0;
+	ReservedLines = 0;
+
+	while (input[i]) {
+
+		linelen++;
+		
+		if (linelen >= getmaxx(stdscr) && !(input[i] == '\n')) {
+			linelen = SpacesCount+3;
+			reserved[j] = '\n';
+			ReservedLines++;
+			j++;
+		}	
+		if (input[i] == '\n') {
+
+			linelen = SpacesCount+3;
+
+		}
+
+		reserved[j] = input[i];
+		j++;
+		i++;
+	}
+	i = 0;
+	reserved[j] = '\0';
+	//mvprintw(32, 0, "%s\n", reserved);
+
+
+	int thisline = 0;
+	int result = 0;
+
+	while (reserved[i]) {
+
+		if (thisline == line && reserved[i] != '\n') {
+			result++;
+		}
+
+
+		if (reserved[i] == '\n') {
+
+			thisline++;
+			if (thisline > line) {
+				break;
+			}
+
+		} 
+		i++;
+		
+	}
+
+	return result;
 }
 /////////////////////////////////////////////////////////////////
 
@@ -81,12 +138,12 @@ void rendertitle(char filename[], char message[], int colorid) {
 	refresh();
 }
 
-void printline(int indx, int strcount) {
+void printline(int indx, int strcount, int isreserver) {
 	//Хуйня, которая выводит номера строк
 
-	attron(COLOR_PAIR(LINES_COLSCH));
+	attron(COLOR_PAIR( isreserver == 0 ? LINES_COLSCH : YELLOW_COLSCH));
 	attron(A_BOLD);	
-	printw(" %d)", indx);
+	printw(" %d%s", indx, isreserver == 0 ? ")" : ":");
 
 	char c[5];
 	sprintf(c, "%d", indx);
@@ -115,19 +172,32 @@ void rendercontent(char input[]) {
 	char c[5];
 	sprintf(c, "%d", LinesCount);
 	SpacesCount = strlen(c);
+	ReservedLines = 0;
 
-	printline(nowline, SpacesCount);
+	printline(nowline, SpacesCount, 0);
 
 	i = 0;
+	int linelen = SpacesCount+3;
 	while (input[i]) {
+
+		linelen++;
+		
+		if (linelen >= getmaxx(stdscr) && !(input[i] == '\n')) {
+			linelen = SpacesCount+3;
+			ReservedLines++;
+			printw("\n");
+			printline(nowline, SpacesCount, 1);
+		}
 
 		printw("%c", input[i]);
 		if (input[i] == '\n') {
 
 			nowline++;
-			printline(nowline, SpacesCount);
+			linelen = SpacesCount+3;
 
-		} 
+			printline(nowline, SpacesCount, 0);
+
+		}
 		i++;
 		
 	}
@@ -240,6 +310,23 @@ void movecur(int y, int x) {
 	FilePosY = y;
 }
 
+void insertchar(char* text, char input, int position) {
+
+	for (int i = strlen(text); i >= position; i--) {
+		*(text+(i+1)) = *(text+i);
+	}
+	*(text+position) = input;
+
+}
+
+void delchar(char* text, int position) {
+
+	for (int i = position-1; text[i]; i++) {
+		*(text+i) = *(text+i+1);
+	}
+}
+
+
 void mainloop(char input[], char dir[]) {
 	//Главный цикл, где просчитывается всякая хуйня
 
@@ -253,7 +340,7 @@ void mainloop(char input[], char dir[]) {
 
 	keypad(stdscr, 1);
 
-	int MinX = SpacesCount+3, MinY = 7, MaxY = 6+LinesCount;
+	int MinX = SpacesCount+3, MinY = 7, MaxY = 6+LinesCount+ReservedLines;
 	int x, y;
 
 	if (FilePosY == 0){
@@ -268,7 +355,17 @@ void mainloop(char input[], char dir[]) {
 	int chr = getch();
 	while (chr) {
 
+		//mvprintw(0, 0, "Char: '%c'", chr);
+
+        if (chr == KEY_RESIZE) {
+        	clear();
+			rendertitle(dir, "nth", LINES_COLSCH);
+			rendercontent(input);
+			refresh();
+        }
+
 		getyx(stdscr, y, x);
+		refresh();
 
 		if (chr == KEY_F(2)) {
 
@@ -326,7 +423,44 @@ void mainloop(char input[], char dir[]) {
 
 			}
 
-		}
+		} else if ((chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr == ' ' || chr == KEY_BACKSPACE || chr == KEY_DC) {
+			int pos = 0;
+			for (int val = 0; val < y-(TitleSize+1); val++) {
+				pos += getlinelen(input, val)+1;
+			}
+			pos += (x-MinX);
+
+			if (chr == KEY_BACKSPACE) {
+
+				if (pos >= 0) {
+					if(x == MinX && y > MinY) {
+					
+						y--;
+						x = MinX+getlinelen(input, y-(TitleSize+1));
+					
+					} else {
+
+						x--;
+					}
+					delchar(input, pos);
+				}
+
+			} else if (chr == KEY_DC) {
+
+				delchar(input, pos+1);
+
+			} else {
+
+				insertchar(input, chr, pos);
+				x++;
+			}
+
+			clear();
+			rendertitle(dir, "nth", LINES_COLSCH);
+			rendercontent(input);
+			refresh();
+			move(FilePosY, FilePosX);
+		} 
 
 		//mvprintw(3, 0, "Char: '%c'", inch());
 		
@@ -356,6 +490,8 @@ int main(int argc, char* args[]) {
 	initscr();
 	printw("\n");
 
+	scrollok(stdscr, 1);
+
 	start_color();	
 
 	//Цветовые схемы
@@ -380,36 +516,4 @@ int main(int argc, char* args[]) {
 	endwin();
 
 	return 0;
-}
-int getlinelen(char input[], int line) {
-
-	setlocale(LC_CTYPE, "C-UTF-8");
-
-	int thisline = 0;
-
-	int i = 0;
-	int result = 0;
-	//mvprintw(0, 0, "'");
-	while (input[i]) {
-
-		//mvprintw(0, result+1, "%c", input[i]);
-		if (thisline == line && input[i] != '\n') {
-			result++;
-		}
-
-
-		if (input[i] == '\n') {
-
-			thisline++;
-			if (thisline > line) {
-				break;
-			}
-
-		} 
-		i++;
-		
-	}
-	//mvprintw(0, result+2, "' '%i'", result);
-
-	return result;
 }
