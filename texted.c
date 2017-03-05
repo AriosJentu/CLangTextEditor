@@ -245,6 +245,96 @@ void rendercontent(char input[]) {
 
 }
 
+void createfile(char* dir, char* input) {
+
+	char txt[4] = "*new";
+	int x;
+	for (x = 0; txt[x]; x++) {
+		*(dir+x) = txt[x];
+	}
+	*(dir+x) = '\0';
+	*(input+0) = '\0';
+
+}
+
+int openfile(char* dir, char* input) {
+
+	int posX = 20, posY = TitleSize+9;
+	attron(A_BOLD);
+	attron(COLOR_PAIR(YELLOW_COLSCH));
+	mvprintw(posY, 0, " Введите имя файла: ");
+	mvprintw(posY+1, 0, " Для выхода нажмите ESC (и подождите)");
+	attroff(A_BOLD);
+	attron(COLOR_PAIR(DEFAULT_COLSCH));
+	refresh();
+
+	char lst[50] = "";
+
+	int chr = getch();
+
+	int x;
+	for (x = 0; dir[x]; x++) {
+		*(dir+x) = dir[x];
+	}
+	*(dir+x) = '\0';
+	for (x = 0; input[x]; x++) {
+		*(input+x) = input[x];
+	}
+	*(input+x) = '\0';
+
+	while (chr != '\n') {
+		if ( (chr >= 32 && chr <= 126) ) {
+
+			mvprintw(posY, posX, "%c", chr);
+			posX++;
+			sprintf(lst, "%s%c", lst, chr);
+
+		} else if (chr == KEY_BACKSPACE && posX > 20) { 
+
+			posX--;
+			mvprintw(posY, posX, " ");		
+			int i;
+			lst[strlen(lst)-1] = '\0';
+
+		} else if ( chr == 27  ) {
+
+			return 0;
+		
+		}
+		chr = getch();
+	}
+
+	if (strlen(lst) <= 1 || lst[0] == ' ') {
+		return 13;
+	}		
+
+	FILE* InputFile;
+	char Content[FILESIZE];
+	if (InputFile = fopen(lst, "r")) {
+
+		fread(Content, FILESIZE, 1, InputFile);
+		fclose(InputFile);
+
+		int k = 0;
+		for (k = 0; Content[k]; k++) {
+			 *(input+k) = Content[k];	
+		}
+		*(input+k) = '\0';
+		
+		for (k = 0; lst[k]; k++) {
+			*(dir+k) = lst[k];
+		}
+		*(dir+k) = '\0';
+
+		return 12;
+		
+	} else {	
+			
+		return 13;
+
+	}
+}
+
 int savefileas(char* dir, char input[]) {
 
 	int posX = 20, posY = TitleSize+9;
@@ -288,7 +378,6 @@ int savefileas(char* dir, char input[]) {
 		chr = getch();
 	}
 
-	mvprintw(0, 0, "DIR: '%s'", lst);
 	if (strlen(lst) <= 1 || lst[0] == ' ') {
 		return 13;
 	}
@@ -398,6 +487,14 @@ int mainmenu(char input[], char dir[]) {
 		if (chr == '5') {			
 			return 42;
 
+		} else if (chr == '1') {
+
+			return 4;
+
+		} else if (chr == '2') {
+
+			return 3;
+
 		} else if (chr == '3') {
 
 			return 2;
@@ -486,7 +583,7 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 		FilePosX = MinX;
 	}
 
-	mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
+	//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 	refresh();
 	
 	noecho();
@@ -514,7 +611,7 @@ void mainloop(char input[], char dir[], char reason[], int col) {
         	clear();
 			rendertitle(dir, exittext, exitcol);
 			rendercontent(input);
-			mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
+			//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 			refresh();
         }
 
@@ -564,6 +661,29 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 					exitcol = ERROR_COLSCH;
 
 				}
+				break;
+
+			} else if (z == 3) {
+
+				int op = openfile(dir, input);
+				if (op == 12) {
+
+					sprintf(exittext, "Файл открыт");
+					exitcol = SUCCESS_COLSCH;
+				
+				} else if (op == 13) {
+
+					sprintf(exittext, "Не удалось открыть файл");
+					exitcol = ERROR_COLSCH;
+
+				}
+				movecur(MinY, MinX);
+				break;
+
+			} else if (z == 4) {
+
+				createfile(dir, input);
+				movecur(MinY, MinX);
 				break;
 
 			}
@@ -663,7 +783,7 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 			clear();
 			rendertitle(dir, exittext, exitcol);
 			rendercontent(input);
-			mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
+			//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 			refresh();
 			move(FilePosY, FilePosX);
 		} 
