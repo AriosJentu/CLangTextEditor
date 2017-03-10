@@ -33,41 +33,13 @@ void movecur(int y, int x) {
 }
 
 /////////////////////////////////////////////////////////////////
-//Скопипастил функцию на проверку существования и доступности директории из моей псевдо-утилиты filecreator нахуй
-int isdirexist(char input[]) {
-
-	int slashpos = 0;
-	for (int i = 0; input[i]; i++) {
-	
-		if (input[i] == '/') {
-			slashpos = i;
-		}
-	}
-
-	char strs[strlen(input)];
-	if (slashpos > 0) {
-	
-		strncpy(strs, input, slashpos);
-	
-	} else {
-	
-		char cwd[128];
-		getcwd(cwd, sizeof(cwd));
-	
-		sprintf(strs, "%s/", cwd);
-	
-	}
-	return opendir(strs) ? 1 : 0;
-}
-
-/////////////////////////////////////////////////////////////////
 int getlinelen(char input[], int line) {
 
 	char reserved[FILESIZE];
 	int linelen = SpacesCount+3, i = 0, j = 0;
 	ReservedLines = 0;
 
-	int newindx = 0;
+	//int newindx = 0;
 
 	while (input[i]) {
 
@@ -77,13 +49,13 @@ int getlinelen(char input[], int line) {
 			linelen = SpacesCount+3;
 			reserved[j] = '\n';
 			ReservedLines++;	
-			newindx++;
+			//newindx++;
 
 			j++;
 		}	
 		if (input[i] == '\n') {
 
-			newindx++;
+			//newindx++;
 			linelen = SpacesCount+3;
 
 		}
@@ -125,7 +97,7 @@ int resrvdbefore(char input[], int line) {//Количество резервн�
 
 	int cnt = 0;
 
-	int newindx = 0;
+	//int newindx = 0;
 	int i = 0;
 	int thisline = 0;
 	int linelen = SpacesCount+3;
@@ -414,18 +386,18 @@ int savefileas(char* dir, char input[]) {
 
 int savefile(char* dir, char input[]) {
 
-	if (fopen(dir, "r") || dir != "*new") {
+	if (fopen(dir, "r") && strcmp(dir, "*new") != 0) {
 		
 		FILE* OutputFile;
 		if (OutputFile = fopen(dir, "w")) {
 		
 			fprintf(OutputFile, "%s", input);
 			fclose(OutputFile);
-			return 12;
+			//return 12;
 
 		} else {	
 			
-			return 13;
+			//return 13;
 		}
 
 	} else {
@@ -576,12 +548,8 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 	int MinX = SpacesCount+3, MinY = 7, MaxY = 6+LinesCount+ReservedLines;
 	int x, y;
 
-	if (FilePosY == 0){
-		FilePosY = MinY;
-	}
-	if (FilePosX == 0){
-		FilePosX = MinX;
-	}
+	FilePosY = FilePosY == 0 ? MinY : FilePosY;
+	FilePosX = FilePosX == 0 ? MinX : FilePosX;
 
 	//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 	refresh();
@@ -615,9 +583,7 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 			refresh();
         }
 
-        if (y > MaxY) {
-        	y = MaxY;
-        }
+        y = y > MaxY ? y : MaxY;
 
 		refresh();
 
@@ -690,22 +656,19 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 
 		} else if (chr == KEY_UP) {
 
-			if (y > MinY){
-				y--;
-			}
-
-			if (x > MinX+getlinelen(input, y-(TitleSize+1) )) {
-				x = MinX+getlinelen(input, y-(TitleSize+1)); 
-			}
+			y -= y > MinY ? 1 : 0;
+			x = x > MinX+getlinelen(input, y-(TitleSize+1)) ? MinX+getlinelen(input, y-(TitleSize+1)) : x ;
 
 		} else if (chr == KEY_DOWN) {
 
-			if (y < MaxY) {
+			y += y < MinY ? 1 : 0;
+			x = x > MinX+getlinelen(input, y-(TitleSize+1)) ? MinX+getlinelen(input, y-(TitleSize+1)) : x ;
+			/*if (y < MaxY) {
 				y++;
 			}
 			if (x > MinX+getlinelen(input, y-(TitleSize+1) )) {
 				x = MinX+getlinelen(input, y-(TitleSize+1)); 
-			}
+			}*/
 
 		} else if (chr == KEY_RIGHT) {
 
@@ -754,17 +717,19 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 						x--;
 					}
 					movecur(y, x);
-					if (inch() == '\n') {
+					LinesCount -= inch() == '\n' ? 1 : 0;
+					/*if (inch() == '\n') {
 						LinesCount--;
-					}
+					}*/
 					delchar(input, pos);
 				}
 
 			} else if (chr == KEY_DC) {
 
-				if (inch() == '\n') {
+				LinesCount -= inch() == '\n' ? 1 : 0;
+				/*if (inch() == '\n') {
 					LinesCount--;
-				}
+				}*/
 				delchar(input, pos+1);
 
 			} else {
