@@ -39,30 +39,18 @@ int getlinelen(char input[], int line) {
 	int linelen = SpacesCount+3, i = 0, j = 0;
 	ReservedLines = 0;
 
-	//int newindx = 0;
-
 	while (input[i]) {
 
 		linelen++;
 		
 		if (linelen >= getmaxx(stdscr) && !(input[i] == '\n')) {
 			linelen = SpacesCount+3;
-			reserved[j] = '\n';
+			reserved[j++] = '\n';
 			ReservedLines++;	
-			//newindx++;
-
-			j++;
 		}	
-		if (input[i] == '\n') {
 
-			//newindx++;
-			linelen = SpacesCount+3;
-
-		}
-
-		reserved[j] = input[i];
-		j++;
-		i++;
+		linelen = input[i] == '\n' ? SpacesCount+3 : linelen;
+		reserved[j++] = input[i++];
 	}
 	i = 0;
 	reserved[j] = '\0';
@@ -76,7 +64,7 @@ int getlinelen(char input[], int line) {
 			result++;
 		}
 
-		if (reserved[i] == '\n') {
+		if (reserved[i++] == '\n') {
 
 			thisline++;
 			if (thisline > line) {
@@ -84,8 +72,6 @@ int getlinelen(char input[], int line) {
 			}
 
 		} 
-		i++;
-		
 	}
 
 	return result;
@@ -97,7 +83,6 @@ int resrvdbefore(char input[], int line) {//Количество резервн�
 
 	int cnt = 0;
 
-	//int newindx = 0;
 	int i = 0;
 	int thisline = 0;
 	int linelen = SpacesCount+3;
@@ -110,11 +95,10 @@ int resrvdbefore(char input[], int line) {//Количество резервн�
 			thisline++;			
 			cnt++;
 		}
-		if (input[i] == '\n') {
+		if (input[i++] == '\n') {
 			thisline++;
 			linelen = SpacesCount+3;
 		}
-		i++;
 	}
 
 	return cnt;
@@ -176,10 +160,7 @@ void rendercontent(char input[]) {
 	LinesCount = 1;
 
 	while (input[i]) {
-		if (input[i] == '\n') {
-			LinesCount++;
-		}
-		i++;
+		LinesCount += input[i++] == '\n' ? 1 : 0;
 	}
 
 	char c[5];
@@ -203,7 +184,7 @@ void rendercontent(char input[]) {
 		}
 
 		printw("%c", input[i]);
-		if (input[i] == '\n') {
+		if (input[i++] == '\n') {
 
 			nowline++;
 			linelen = SpacesCount+3;
@@ -211,10 +192,7 @@ void rendercontent(char input[]) {
 			printline(nowline, SpacesCount, 0);
 
 		}
-		i++;
-		
 	}
-
 }
 
 void createfile(char* dir, char* input) {
@@ -242,8 +220,6 @@ int openfile(char* dir, char* input) {
 
 	char lst[50] = "";
 
-	int chr = getch();
-
 	int x;
 	for (x = 0; dir[x]; x++) {
 		*(dir+x) = dir[x];
@@ -254,6 +230,7 @@ int openfile(char* dir, char* input) {
 	}
 	*(input+x) = '\0';
 
+	int chr = getch();
 	while (chr != '\n') {
 		if ( (chr >= 32 && chr <= 126) ) {
 
@@ -357,9 +334,7 @@ int savefileas(char* dir, char input[]) {
 	int noext = 1;
 	for (x = 0; lst[x]; x++) {
 		*(dir+x) = lst[x];
-		if (lst[x] == '.' && x < strlen(lst)-1) {
-			noext = 0;
-		}
+		noext = (lst[x] == '.' && x < strlen(lst)-1) ? 0 : noext;
 	}
 	if (noext) {
 		*(dir+(x++)) = '.';
@@ -393,11 +368,11 @@ int savefile(char* dir, char input[]) {
 		
 			fprintf(OutputFile, "%s", input);
 			fclose(OutputFile);
-			//return 12;
+			return 12;
 
 		} else {	
 			
-			//return 13;
+			return 13;
 		}
 
 	} else {
@@ -486,9 +461,7 @@ int mainmenu(char input[], char dir[]) {
 
 				mvprintw(SelectedItem, 1, " ");
 
-				if (SelectedItem == ItemsCount+TitleSize) {
-					SelectedItem--;
-				}
+				SelectedItem -= SelectedItem == ItemsCount+TitleSize ? 1 : 0;
 				mvprintw(--SelectedItem, 1, ">");
 			
 			}
@@ -499,9 +472,8 @@ int mainmenu(char input[], char dir[]) {
 
 				attron(COLOR_PAIR(DEFAULT_COLSCH));
 				mvprintw(SelectedItem, 1, " ");
-				if (SelectedItem == 5+TitleSize) {
-					SelectedItem++;
-				}
+
+				SelectedItem += SelectedItem == 5+TitleSize ? 1 : 0;
 				mvprintw(++SelectedItem, 1, ">");
 			
 			}
@@ -551,7 +523,6 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 	FilePosY = FilePosY == 0 ? MinY : FilePosY;
 	FilePosX = FilePosX == 0 ? MinX : FilePosX;
 
-	//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 	refresh();
 	
 	noecho();
@@ -568,8 +539,6 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 
 	while (chr) {
 
-		//mvprintw(0, 0, "Char: '%c'", chr);
-		
 		MinX = SpacesCount+3; 
 		MinY = 7; 
 		MaxY = 6+LinesCount+ReservedLines;
@@ -579,11 +548,10 @@ void mainloop(char input[], char dir[], char reason[], int col) {
         	clear();
 			rendertitle(dir, exittext, exitcol);
 			rendercontent(input);
-			//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 			refresh();
         }
 
-        y = y > MaxY ? y : MaxY;
+        y = (y > MaxY) ? MaxY : y;
 
 		refresh();
 
@@ -656,19 +624,13 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 
 		} else if (chr == KEY_UP) {
 
-			y -= y > MinY ? 1 : 0;
-			x = x > MinX+getlinelen(input, y-(TitleSize+1)) ? MinX+getlinelen(input, y-(TitleSize+1)) : x ;
+			y = (y > MinY) ? y-1 : y;
+			x = (x > MinX+getlinelen(input, y-(TitleSize+1))) ? MinX+getlinelen(input, y-(TitleSize+1)) : x;
 
 		} else if (chr == KEY_DOWN) {
 
-			y += y < MinY ? 1 : 0;
-			x = x > MinX+getlinelen(input, y-(TitleSize+1)) ? MinX+getlinelen(input, y-(TitleSize+1)) : x ;
-			/*if (y < MaxY) {
-				y++;
-			}
-			if (x > MinX+getlinelen(input, y-(TitleSize+1) )) {
-				x = MinX+getlinelen(input, y-(TitleSize+1)); 
-			}*/
+			y = (y < MinY) ? y+1 : y;
+			x = (x > MinX+getlinelen(input, y-(TitleSize+1))) ? MinX+getlinelen(input, y-(TitleSize+1)) : x;
 
 		} else if (chr == KEY_RIGHT) {
 
@@ -706,7 +668,7 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 
 			if (chr == KEY_BACKSPACE) {
 
-				if (pos >= 0) {
+				if (pos > 0) {
 					if(x == MinX && y > MinY) {
 					
 						y--;
@@ -718,18 +680,14 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 					}
 					movecur(y, x);
 					LinesCount -= inch() == '\n' ? 1 : 0;
-					/*if (inch() == '\n') {
-						LinesCount--;
-					}*/
+
 					delchar(input, pos);
 				}
 
 			} else if (chr == KEY_DC) {
 
 				LinesCount -= inch() == '\n' ? 1 : 0;
-				/*if (inch() == '\n') {
-					LinesCount--;
-				}*/
+
 				delchar(input, pos+1);
 
 			} else {
@@ -748,15 +706,11 @@ void mainloop(char input[], char dir[], char reason[], int col) {
 			clear();
 			rendertitle(dir, exittext, exitcol);
 			rendercontent(input);
-			//mvprintw(0, 0, "Lines: %i; Sublines: %i;", LinesCount, ReservedLines);
 			refresh();
 			move(FilePosY, FilePosX);
 		} 
 
-		//mvprintw(3, 0, "Char: '%c'", inch());
-		
 		movecur(y, x);
-
 		chr = getch();
 	}
 
